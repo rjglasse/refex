@@ -33,9 +33,11 @@ refex paper.pdf --repair --repair-model gpt-4.1
 ### Python
 
 ```python
-from refex import extract_references, parse_reference
+from refex import extract_references, repair_references, parse_reference
 
 refs = extract_references("paper.pdf")
+refs, _ = repair_references(refs)    # optional: LLM repair (needs OPENAI_API_KEY)
+
 for ref in refs:
     parsed = parse_reference(ref)
     print(parsed["authors"], parsed["year"], parsed["title"])

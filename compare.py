@@ -4,11 +4,9 @@
 import csv
 import json
 import re
-import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 from refex import extract_references
 
 PDF_DIR = Path(__file__).resolve().parent / "pdfs"

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "refex"
+version = "0.1.0"
+description = "Extract academic references from PDF files using pdftotext + LLM repair"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "openai>=1.0",
+]
+
+[project.scripts]
+refex = "refex:main"
+
+[tool.setuptools.packages.find]

@@ -2,12 +2,23 @@
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
 from .extractor import extract_references
 from .parser import parse_reference
 from .repairer import repair_references
+
+
+REFERENCE_LABEL_PATTERN = re.compile(r"^\s*(?:\[\d+\]|\d+\.)\s+")
+
+
+def _format_reference(index: int, ref: str) -> str:
+    """Add a display index unless the reference already has one."""
+    if REFERENCE_LABEL_PATTERN.match(ref):
+        return ref
+    return f"[{index}] {ref}"
 
 
 def main():
@@ -51,7 +62,7 @@ def main():
             json.dump(parsed, sys.stdout, indent=2, ensure_ascii=False)
         else:
             for i, ref in enumerate(refs, 1):
-                print(f"[{i}] {ref}\n")
+                print(f"{_format_reference(i, ref)}\n")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

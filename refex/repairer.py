@@ -62,7 +62,6 @@ Return a JSON array with one object per reference:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.1,
         response_format={"type": "json_object"}
     )
 

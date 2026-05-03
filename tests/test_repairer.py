@@ -81,3 +81,4 @@ def test_response_format_always_json(mocker):
 
     call_kwargs = mock_client.return_value.chat.completions.create.call_args.kwargs
     assert call_kwargs["response_format"] == {"type": "json_object"}
+    assert "temperature" not in call_kwargs

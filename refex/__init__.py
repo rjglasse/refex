@@ -9,7 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-YEAR_PATTERN = re.compile(r"\((?:1[89]\d{2}|20\d{2}[a-z]?)\)")
+YEAR_PATTERN = re.compile(r"\(?(?:1[89]\d{2}|20\d{2}[a-z]?)\)?")
+YEAR_VALUE_PATTERN = re.compile(r"^(?:1[89]\d{2}|20\d{2}[a-z]?)$")
 DOI_PATTERN = re.compile(r"10\.\d{4,}/[^\s]+")
 REFERENCE_HEADERS = [
     r"^\s*(?:references?|bibliography|works\s+cited|literature\s+cited)\s*$",
@@ -59,9 +60,6 @@ def _split_numbered(raw: str) -> list[str]:
     for line in raw.splitlines():
         stripped = line.strip()
         if not stripped:
-            if current:
-                refs.append(current)
-                current = []
             continue
         if re.match(r"^\[(\d+)\]\s", stripped):
             if current:
@@ -156,26 +154,30 @@ def parse_reference(ref_text: str) -> dict:
         "pages": None,
         "doi": None,
     }
-    doi_match = DOI_PATTERN.search(ref_text)
+    clean_ref = re.sub(r"^\s*(?:\[\d+\]|\d+\.)\s*", "", ref_text).strip()
+
+    doi_match = DOI_PATTERN.search(clean_ref)
     if doi_match:
         parts["doi"] = doi_match.group(0).rstrip(".")
-    year_match = YEAR_PATTERN.search(ref_text)
+    year_match = YEAR_PATTERN.search(clean_ref)
     if year_match:
-        parts["year"] = year_match.group(0).strip("()")
+        year = year_match.group(0).strip("()")
+        if YEAR_VALUE_PATTERN.match(year):
+            parts["year"] = year
     volume_match = re.search(
-        r"(\d+)\s*\(\d+\)\s*[,:]\s*(\d+[\-\u2013]\d+|\d+)", ref_text
+        r"(\d+)\s*\(\d+\)\s*[,:]\s*(\d+[\-\u2013]\d+|\d+)", clean_ref
     )
     if volume_match:
         parts["volume"] = volume_match.group(1)
         parts["pages"] = volume_match.group(2)
-    author_match = re.match(r"^(.+?)\s*\(?\d{4}", ref_text)
+    author_match = re.match(r"^(.+?)\s*\(?\d{4}", clean_ref)
     if author_match:
         authors_raw = author_match.group(1).strip()
         authors_raw = re.sub(r'[,"\']\s*$', "", authors_raw).strip()
-        if len(authors_raw) < len(ref_text) * 0.7:
+        if len(authors_raw) < len(clean_ref) * 0.7:
             parts["authors"] = authors_raw
     if parts["year"]:
-        after_year = ref_text.split(parts["year"], 1)
+        after_year = clean_ref.split(parts["year"], 1)
         if len(after_year) > 1:
             remainder = after_year[1].strip().lstrip(".)]. ")
             title_match = re.match(r"(.+?)\.\s*[A-Z]", remainder)
@@ -260,6 +262,20 @@ Return a JSON array with one object per reference:
     return [r for r in result if isinstance(r, dict)]
 
 
+def _normalize_repair_result(result: dict, batch_start: int,
+                             batch_len: int) -> dict | None:
+    idx = result.get("index")
+    if not isinstance(idx, int):
+        return None
+    if batch_start <= idx < batch_start + batch_len:
+        return result
+    if 0 <= idx < batch_len:
+        normalized = dict(result)
+        normalized["index"] = batch_start + idx
+        return normalized
+    return None
+
+
 def repair_references(references: list[str], model: str | None = None,
                       batch_size: int = 15) -> tuple[list[str], str]:
     """Repair references via LLM. Returns (repaired_refs, log_text)."""
@@ -271,7 +287,14 @@ def repair_references(references: list[str], model: str | None = None,
     all_results: list[dict] = []
     for batch_start in range(0, len(references), batch_size):
         batch = references[batch_start: batch_start + batch_size]
-        all_results.extend(_repair_batch(batch, batch_start, model))
+        batch_results = _repair_batch(batch, batch_start, model)
+        all_results.extend(
+            r for r in (
+                _normalize_repair_result(result, batch_start, len(batch))
+                for result in batch_results
+            )
+            if r is not None
+        )
 
     # Fill gaps
     filled = []
@@ -324,6 +347,7 @@ def repair_references(references: list[str], model: str | None = None,
 
 def main():
     parser = argparse.ArgumentParser(
+        prog="refex",
         description="Extract academic references from a PDF (pdftotext + optional LLM repair)."
     )
     parser.add_argument("pdf", type=Path, help="Path to the PDF file")

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from refex import extract_references
 
-PDF_DIR = Path(__file__).resolve().parent / "pdfs"
+PDF_DIR = Path(__file__).resolve().parent.parent / "pdfs"
 EXPECTED_CSV = PDF_DIR / "expected-refs.csv"
 GOLD_JSONL = PDF_DIR / "expected-references.jsonl"
 

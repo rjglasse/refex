@@ -7,12 +7,18 @@ name = "refex"
 version = "0.1.0"
 description = "Extract academic references from PDF files using pdftotext + LLM repair"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "openai>=1.0",
 ]
 
 [project.scripts]
-refex = "refex:main"
+refex = "refex.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mock",
+]
 
 [tool.setuptools.packages.find]
